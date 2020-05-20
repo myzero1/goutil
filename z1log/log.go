@@ -1,4 +1,4 @@
-package logger
+package z1log
 
 import (
 	"io"
@@ -12,6 +12,12 @@ import (
 
 var errorLogger *zap.SugaredLogger
 
+/*
+https://www.jianshu.com/p/d729c7ec9c85
+1、不同级别的日志输出到不同的日志文件中。
+2、日志文件按照文件大小或日期进行切割存储，以避免单一日志文件过大。
+3、日志使用简单方便，一次定义全局使用。
+*/
 func init() {
 	// 设置一些基本日志格式 具体含义还比较好理解，直接看zap源码也不难懂
 	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
