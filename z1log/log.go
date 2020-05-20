@@ -14,6 +14,8 @@ var errorLogger *zap.SugaredLogger
 
 /*
 https://www.jianshu.com/p/d729c7ec9c85
+https://juejin.im/post/5bffa2f15188256693607d7c
+https://github.com/uber-go/zap/issues/715
 1、不同级别的日志输出到不同的日志文件中。
 2、日志文件按照文件大小或日期进行切割存储，以避免单一日志文件过大。
 3、日志使用简单方便，一次定义全局使用。
