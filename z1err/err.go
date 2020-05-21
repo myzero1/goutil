@@ -1,8 +1,6 @@
 package z1err
 
-import (
-	"goutil/z1log"
-)
+import "github.com/myzero1/goutil/z1log"
 
 // ChkErr check err
 func ChkErr(err error, opts ...string) bool {
