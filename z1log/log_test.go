@@ -9,8 +9,9 @@ import (
 
 func TestLog(t *testing.T) {
 	fmt.Println("------")
-	// set logPath,default ./logs
-	SetLogPath("../logs")
+	SetLogPath("./logs")
+	SetOutput("console")
+	SetJsonFormat(false)
 	Debug("error %v", "Debug")
 	Info("error %v", "info")
 	Warn("error %v", "info")
