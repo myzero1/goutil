@@ -10,33 +10,42 @@ func TestErr(t *testing.T) {
 	fmt.Println("-----------------start")
 
 	fmt.Println("------------------1----------------")
+
 	err := errors.New("1 err")
 	ChkErr(err)
 
 	fmt.Println("------------------2----------------")
-	ChkErr(errors.New("2 err"), "second err")
+
+	err = errors.New("2 err")
+	ChkErr(err, "second err")
 
 	for i := 0; i < 5; i++ {
 		if i < 4 {
-			if ChkErr(errors.New("test for continue"), "test for") {
+			err := errors.New("test for continue")
+			if ChkErr(err, "test for") {
 				fmt.Println("=====", i)
 				continue
 			}
 		}
 
-		if ChkErr(errors.New("test for break"), "test for") {
+		err := errors.New("test for break")
+		if ChkErr(err, "test for") {
 			fmt.Println("=====break")
 			break
 		}
 	}
 
 	fmt.Println("------------------return----------------")
-	if ChkErr(errors.New("test return"), "test return") {
+
+	err = errors.New("test return")
+	if ChkErr(err, "test return") {
 		return
 	}
 
 	fmt.Println("------------------panic----------------")
-	ChkErr(errors.New("test return"), "test panic", "panic")
+
+	err = errors.New("test return")
+	ChkErr(err, "test panic", "panic")
 
 	fmt.Println("-----------------end")
 }
