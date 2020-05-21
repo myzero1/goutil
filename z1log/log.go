@@ -1,135 +1,103 @@
 package z1log
 
 import (
-	"io"
-	"strings"
-	"time"
+	"os"
 
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
+	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var errorLogger *zap.SugaredLogger
-
-/*
-https://www.jianshu.com/p/d729c7ec9c85
-https://juejin.im/post/5bffa2f15188256693607d7c
-https://github.com/uber-go/zap/issues/715
-https://my.oschina.net/noevilme/blog/3111521
-1、不同级别的日志输出到不同的日志文件中。
-2、日志文件按照文件大小或日期进行切割存储，以避免单一日志文件过大。
-3、日志使用简单方便，一次定义全局使用。
-*/
-func init() {
-	// 设置一些基本日志格式 具体含义还比较好理解，直接看zap源码也不难懂
-	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
-		MessageKey:  "msg",
-		LevelKey:    "level",
-		EncodeLevel: zapcore.CapitalLevelEncoder,
-		TimeKey:     "ts",
-		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(t.Format("2006-01-02 15:04:05"))
-		},
-		CallerKey:    "file",
-		EncodeCaller: zapcore.ShortCallerEncoder,
-		EncodeDuration: func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendInt64(int64(d) / 1000000)
-		},
-	})
-
-	// 实现两个判断日志等级的interface
-	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.InfoLevel
-	})
-
-	errorLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.ErrorLevel
-	})
-
-	// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
-	infoWriter := getWriter("./logs/demo_info.log")
-	errorWriter := getWriter("./logs/demo_error.log")
-
-	// 最后创建具体的Logger
-	core := zapcore.NewTee(
-		zapcore.NewCore(encoder, zapcore.AddSync(infoWriter), infoLevel),
-		zapcore.NewCore(encoder, zapcore.AddSync(errorWriter), errorLevel),
-	)
-
-	// log := zap.New(core, zap.AddCaller()) // 需要传入 zap.AddCaller() 才会显示打日志点的文件名和行数, 有点小坑
-	log := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1)) // 需要传入 zap.AddCaller() 才会显示打日志点的文件名和行数, 有点小坑
-	errorLogger = log.Sugar()
+type Z1logger struct {
+	zapLogger    *zap.Logger
+	logPath      string //日志文件路径
+	maxSize      int    //单个文件大小,MB
+	maxBackups   int    //保存的文件个数
+	maxAge       int    //保存的天数， 没有的话不删除
+	compress     bool   //压缩
+	jsonFormat   bool   //是否输出为json格式
+	showLine     bool   //显示代码行
+	logInConsole bool   //是否同时输出到控制台
 }
 
-func getWriter(filename string) io.Writer {
-	// 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
-	// demo.log是指向最新日志的链接
-	// 保存7天内的日志，每1小时(整点)分割一次日志
-	hook, err := rotatelogs.New(
-		strings.Replace(filename, ".log", "", -1) + "-%Y%m%d%H.log", // 没有使用go风格反人类的format格式
-		//rotatelogs.WithLinkName(filename),
-		//rotatelogs.WithMaxAge(time.Hour*24*7),
-		//rotatelogs.WithRotationTime(time.Hour),
-	)
-
-	if err != nil {
-		panic(err)
+func (log *Z1logger) reNewZapLog() {
+	hook := lumberjack.Logger{
+		Filename:   log.logPath,    // 日志文件路径
+		MaxSize:    log.maxSize,    // megabytes
+		MaxBackups: log.maxBackups, // 最多保留300个备份
+		Compress:   log.compress,   // 是否压缩 disabled by default
 	}
-	return hook
-}
-func Debug(args ...interface{}) {
-	errorLogger.Debug(args...)
+	if log.maxAge > 0 {
+		hook.MaxAge = log.maxAge // days
+	}
+
+	var syncer zapcore.WriteSyncer
+	if log.logInConsole {
+		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
+	} else {
+		syncer = zapcore.AddSync(&hook)
+	}
+
+	encoderConfig := zapcore.EncoderConfig{
+		TimeKey:        "time",
+		LevelKey:       "level",
+		NameKey:        "logger",
+		CallerKey:      "line",
+		MessageKey:     "msg",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.LowercaseLevelEncoder,  // 小写编码器
+		EncodeTime:     zapcore.ISO8601TimeEncoder,     // ISO8601 UTC 时间格式
+		EncodeDuration: zapcore.SecondsDurationEncoder, //
+		EncodeCaller:   zapcore.ShortCallerEncoder,     // 全路径编码器
+		EncodeName:     zapcore.FullNameEncoder,
+	}
+
+	var encoder zapcore.Encoder
+	if log.jsonFormat {
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	} else {
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	}
+
+	core := zapcore.NewCore(
+		encoder,
+		syncer,
+		zap.InfoLevel,
+	)
+
+	log.zapLogger = zap.New(core)
+	if log.showLine {
+		log.zapLogger = log.zapLogger.WithOptions(zap.AddCaller())
+	}
 }
 
-func Debugf(template string, args ...interface{}) {
-	errorLogger.Debugf(template, args...)
+// NewZ1logger new
+func NewZ1logger() *Z1logger {
+	log := Z1logger{
+		zapLogger:    nil,
+		logPath:      "./logs",
+		maxSize:      10,
+		maxBackups:   100,
+		maxAge:       30,
+		compress:     false,
+		jsonFormat:   false,
+		showLine:     true,
+		logInConsole: true,
+	}
+	return &log
+
+}
+
+// init ===index=== 一旦某一个包被使用，则这个包下边的init函数将会被执行，且只执行一次
+var z1logger *Z1logger
+
+func init() {
+	z1logger = NewZ1logger()
+	z1logger.reNewZapLog()
 }
 
 func Info(args ...interface{}) {
+	errorLogger := z1logger.zapLogger.Sugar()
 	errorLogger.Info(args...)
-}
-
-func Infof(template string, args ...interface{}) {
-	errorLogger.Infof(template, args...)
-}
-
-func Warn(args ...interface{}) {
-	errorLogger.Warn(args...)
-}
-
-func Warnf(template string, args ...interface{}) {
-	errorLogger.Warnf(template, args...)
-}
-
-func Error(args ...interface{}) {
-	errorLogger.Error(args...)
-}
-
-func Errorf(template string, args ...interface{}) {
-	errorLogger.Errorf(template, args...)
-}
-
-func DPanic(args ...interface{}) {
-	errorLogger.DPanic(args...)
-}
-
-func DPanicf(template string, args ...interface{}) {
-	errorLogger.DPanicf(template, args...)
-}
-
-func Panic(args ...interface{}) {
-	errorLogger.Panic(args...)
-}
-
-func Panicf(template string, args ...interface{}) {
-	errorLogger.Panicf(template, args...)
-}
-
-func Fatal(args ...interface{}) {
-	errorLogger.Fatal(args...)
-}
-
-func Fatalf(template string, args ...interface{}) {
-	errorLogger.Fatalf(template, args...)
 }

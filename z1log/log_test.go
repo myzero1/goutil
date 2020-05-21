@@ -5,9 +5,10 @@ import (
 	"testing"
 )
 
+// debug->info->warn->error
+
 func TestLog(t *testing.T) {
 	fmt.Println("------")
-	Errorf("error %v", "error11")
-	Infof("error %v", "info")
-	fmt.Println("========")
+
+	Info("error %v", "info")
 }
