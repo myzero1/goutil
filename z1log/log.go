@@ -211,11 +211,64 @@ func Fatalf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatalf(template, args...)
 }
 
+func SetLogPath(logPath string) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.logPath = logPath
+	z1logger.reNewZapLog()
+}
+
+func SetMaxSize(maxSize int) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.maxSize = maxSize
+	z1logger.reNewZapLog()
+}
+
+func SetMaxBackups(maxBackups int) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.maxBackups = maxBackups
+	z1logger.reNewZapLog()
+}
+
+func SetMaxAge(maxAge int) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.maxAge = maxAge
+	z1logger.reNewZapLog()
+}
+
+func SetCompress(compress bool) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.compress = compress
+	z1logger.reNewZapLog()
+}
+
+func SetJsonFormat(jsonFormat bool) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.jsonFormat = jsonFormat
+	z1logger.reNewZapLog()
+}
+
+func SetShowLine(showLine bool) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.showLine = showLine
+	z1logger.reNewZapLog()
+}
+
+func SetLogInConsole(logInConsole bool) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.logInConsole = logInConsole
+	z1logger.reNewZapLog()
+}
 func SetCallerSkip(skip int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
 	z1logger.callerSkip = skip
 	z1logger.reNewZapLog()
 }
-
-// logPath
