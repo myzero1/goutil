@@ -3,6 +3,7 @@ package z1log
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/natefinch/lumberjack"
@@ -21,6 +22,8 @@ type Z1logger struct {
 	jsonFormat       bool   //是否输出为json格式
 	showLine         bool   //显示代码行
 	logInConsole     bool   //是否同时输出到控制台
+	callerSkip       int
+	lock             sync.RWMutex
 }
 
 func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
@@ -127,6 +130,8 @@ func (log *Z1logger) reNewZapLog() {
 		log.zapLogger = log.zapLogger.WithOptions(zap.AddCaller())
 	}
 
+	log.zapLogger = log.zapLogger.WithOptions(zap.AddCallerSkip(log.callerSkip))
+
 	log.zapSugaredLogger = z1logger.zapLogger.Sugar()
 }
 
@@ -143,6 +148,7 @@ func NewZ1logger() *Z1logger {
 		jsonFormat:   false,
 		showLine:     true,
 		logInConsole: true,
+		callerSkip:   1,
 	}
 	return &log
 
@@ -210,4 +216,11 @@ func Fatal(args ...interface{}) {
 
 func Fatalf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatalf(template, args...)
+}
+
+func SetCallerSkip(skip int) {
+	z1logger.lock.Lock()
+	defer z1logger.lock.Unlock()
+	z1logger.callerSkip = skip
+	z1logger.reNewZapLog()
 }
