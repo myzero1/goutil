@@ -11,15 +11,16 @@ import (
 )
 
 type Z1logger struct {
-	zapLogger    *zap.Logger
-	logPath      string //日志文件路径
-	maxSize      int    //单个文件大小,MB
-	maxBackups   int    //保存的文件个数
-	maxAge       int    //保存的天数， 没有的话不删除
-	compress     bool   //压缩
-	jsonFormat   bool   //是否输出为json格式
-	showLine     bool   //显示代码行
-	logInConsole bool   //是否同时输出到控制台
+	zapLogger        *zap.Logger
+	zapSugaredLogger *zap.SugaredLogger
+	logPath          string //日志文件路径
+	maxSize          int    //单个文件大小,MB
+	maxBackups       int    //保存的文件个数
+	maxAge           int    //保存的天数， 没有的话不删除
+	compress         bool   //压缩
+	jsonFormat       bool   //是否输出为json格式
+	showLine         bool   //显示代码行
+	logInConsole     bool   //是否同时输出到控制台
 }
 
 func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
@@ -125,16 +126,19 @@ func (log *Z1logger) reNewZapLog() {
 	if log.showLine {
 		log.zapLogger = log.zapLogger.WithOptions(zap.AddCaller())
 	}
+
+	log.zapSugaredLogger = z1logger.zapLogger.Sugar()
 }
 
 // NewZ1logger new
 func NewZ1logger() *Z1logger {
 	log := Z1logger{
-		zapLogger:    nil,
-		logPath:      "./logs",
-		maxSize:      10,
-		maxBackups:   100,
-		maxAge:       30,
+		zapLogger:        nil,
+		zapSugaredLogger: nil,
+		logPath:          "./logs",
+		// maxSize:      100,
+		// maxBackups:   100,
+		// maxAge:       30,
 		compress:     false,
 		jsonFormat:   false,
 		showLine:     true,
@@ -153,11 +157,57 @@ func init() {
 }
 
 func Debug(args ...interface{}) {
-	errorLogger := z1logger.zapLogger.Sugar()
-	errorLogger.Debug(args...)
+	z1logger.zapSugaredLogger.Debug(args...)
+}
+
+func Debugf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Debugf(template, args...)
 }
 
 func Info(args ...interface{}) {
-	errorLogger := z1logger.zapLogger.Sugar()
-	errorLogger.Info(args...)
+	z1logger.zapSugaredLogger.Info(args...)
+}
+
+func Infof(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Infof(template, args...)
+}
+
+func Warn(args ...interface{}) {
+	z1logger.zapSugaredLogger.Warn(args...)
+}
+
+func Warnf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Warnf(template, args...)
+}
+
+func Error(args ...interface{}) {
+	z1logger.zapSugaredLogger.Error(args...)
+}
+
+func Errorf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Errorf(template, args...)
+}
+
+func DPanic(args ...interface{}) {
+	z1logger.zapSugaredLogger.DPanic(args...)
+}
+
+func DPanicf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.DPanicf(template, args...)
+}
+
+func Panic(args ...interface{}) {
+	z1logger.zapSugaredLogger.Panic(args...)
+}
+
+func Panicf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Panicf(template, args...)
+}
+
+func Fatal(args ...interface{}) {
+	z1logger.zapSugaredLogger.Fatal(args...)
+}
+
+func Fatalf(template string, args ...interface{}) {
+	z1logger.zapSugaredLogger.Fatalf(template, args...)
 }

@@ -12,4 +12,6 @@ func TestLog(t *testing.T) {
 
 	Debug("error %v", "Debug")
 	Info("error %v", "info")
+	Warn("error %v", "info")
+	Error("error %v", "info")
 }
