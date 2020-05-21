@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
@@ -46,20 +45,6 @@ func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 		hook.MaxAge = log.maxAge // days
 	}
 
-	// // 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
-	// // demo.log是指向最新日志的链接
-	// // 保存7天内的日志，每1小时(整点)分割一次日志
-	// hook, err := rotatelogs.New(
-	// 	strings.Replace(filename, ".log", "", -1) + "-%Y%m%d%H.log", // 没有使用go风格反人类的format格式
-	// 	//rotatelogs.WithLinkName(filename),
-	// 	//rotatelogs.WithMaxAge(time.Hour*24*7),
-	// 	//rotatelogs.WithRotationTime(time.Hour),
-	// )
-
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	var syncer zapcore.WriteSyncer
 	if log.logInConsole {
 		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
@@ -74,18 +59,26 @@ func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 func (log *Z1logger) reNewZapLog() {
 
 	encoderConfig := zapcore.EncoderConfig{
-		MessageKey:  "msg",
-		LevelKey:    "level",
-		EncodeLevel: zapcore.CapitalLevelEncoder,
-		TimeKey:     "ts",
-		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(t.Format("2006-01-02 15:04:05"))
-		},
-		CallerKey:    "file",
-		EncodeCaller: zapcore.ShortCallerEncoder,
-		EncodeDuration: func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendInt64(int64(d) / 1000000)
-		},
+		TimeKey: "time",
+		// TimeKey:  "ts",
+		LevelKey:  "level",
+		NameKey:   "logger",
+		CallerKey: "line",
+		// CallerKey:     "file",
+		MessageKey:    "msg",
+		StacktraceKey: "stacktrace",
+		LineEnding:    zapcore.DefaultLineEnding,
+		EncodeLevel:   zapcore.LowercaseLevelEncoder, // 小写编码器
+		EncodeTime:    zapcore.ISO8601TimeEncoder,    // ISO8601 UTC 时间格式
+		// EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		// 	enc.AppendString(t.Format("2006-01-02 15:04:05"))
+		// },
+		EncodeDuration: zapcore.SecondsDurationEncoder,
+		// EncodeDuration: func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
+		// 	enc.AppendInt64(int64(d) / 1000000)
+		// },
+		EncodeCaller: zapcore.ShortCallerEncoder, // 全路径编码器
+		EncodeName:   zapcore.FullNameEncoder,
 	}
 
 	var encoder zapcore.Encoder
@@ -224,3 +217,5 @@ func SetCallerSkip(skip int) {
 	z1logger.callerSkip = skip
 	z1logger.reNewZapLog()
 }
+
+// logPath
