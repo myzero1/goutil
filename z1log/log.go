@@ -1,7 +1,9 @@
 package z1log
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
@@ -20,7 +22,7 @@ type Z1logger struct {
 	logInConsole bool   //是否同时输出到控制台
 }
 
-func (log *Z1logger) reNewZapLog() {
+func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 	hook := lumberjack.Logger{
 		Filename:   log.logPath,    // 日志文件路径
 		MaxSize:    log.maxSize,    // megabytes
@@ -38,19 +40,33 @@ func (log *Z1logger) reNewZapLog() {
 		syncer = zapcore.AddSync(&hook)
 	}
 
+	return syncer
+
+}
+
+func (log *Z1logger) reNewZapLog() {
+
 	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "time",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "line",
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,  // 小写编码器
-		EncodeTime:     zapcore.ISO8601TimeEncoder,     // ISO8601 UTC 时间格式
-		EncodeDuration: zapcore.SecondsDurationEncoder, //
-		EncodeCaller:   zapcore.ShortCallerEncoder,     // 全路径编码器
-		EncodeName:     zapcore.FullNameEncoder,
+		// TimeKey:       "time",
+		TimeKey:  "ts",
+		LevelKey: "level",
+		NameKey:  "logger",
+		// CallerKey: "line",
+		CallerKey:     "file",
+		MessageKey:    "msg",
+		StacktraceKey: "stacktrace",
+		LineEnding:    zapcore.DefaultLineEnding,
+		EncodeLevel:   zapcore.LowercaseLevelEncoder, // 小写编码器
+		// EncodeTime:     zapcore.ISO8601TimeEncoder,     // ISO8601 UTC 时间格式
+		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(t.Format("2006-01-02 15:04:05"))
+		},
+		// EncodeDuration: zapcore.SecondsDurationEncoder,
+		EncodeDuration: func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendInt64(int64(d) / 1000000)
+		},
+		EncodeCaller: zapcore.ShortCallerEncoder, // 全路径编码器
+		EncodeName:   zapcore.FullNameEncoder,
 	}
 
 	var encoder zapcore.Encoder
@@ -60,10 +76,34 @@ func (log *Z1logger) reNewZapLog() {
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	}
 
-	core := zapcore.NewCore(
-		encoder,
-		syncer,
-		zap.InfoLevel,
+	// 实现两个判断日志等级的interface
+	// 设置日志级别,debug可以打印出info,debug,warn；info级别可以打印warn，info；warn只能打印warn
+	// debug->info->warn->error
+	debugLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl == zapcore.DebugLevel
+	})
+	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl == zapcore.InfoLevel
+	})
+	warnLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl == zapcore.WarnLevel
+	})
+	errorLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl == zapcore.ErrorLevel
+	})
+
+	// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
+	debugWriter := log.getWriter(fmt.Sprintf("%s/debug.log", log.logPath))
+	infoWriter := log.getWriter(fmt.Sprintf("%s/inf0.log", log.logPath))
+	warnWriter := log.getWriter(fmt.Sprintf("%s/warn.log", log.logPath))
+	errorWriter := log.getWriter(fmt.Sprintf("%s/error.log", log.logPath))
+
+	// 最后创建具体的Logger
+	core := zapcore.NewTee(
+		zapcore.NewCore(encoder, debugWriter, debugLevel),
+		zapcore.NewCore(encoder, infoWriter, infoLevel),
+		zapcore.NewCore(encoder, warnWriter, warnLevel),
+		zapcore.NewCore(encoder, errorWriter, errorLevel),
 	)
 
 	log.zapLogger = zap.New(core)
