@@ -3,10 +3,9 @@ package z1log
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
+	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -32,38 +31,36 @@ func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 		}
 	}
 
-	fmt.Println(log.logPath)
-
-	// hook := lumberjack.Logger{
-	// 	Filename:   filename,       // 日志文件路径
-	// 	MaxSize:    log.maxSize,    // megabytes
-	// 	MaxBackups: log.maxBackups, // 最多保留300个备份
-	// 	Compress:   log.compress,   // 是否压缩 disabled by default
-	// }
-
-	// if log.maxAge > 0 {
-	// 	hook.MaxAge = log.maxAge // days
-	// }
-
-	// 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
-	// demo.log是指向最新日志的链接
-	// 保存7天内的日志，每1小时(整点)分割一次日志
-	hook, err := rotatelogs.New(
-		strings.Replace(filename, ".log", "", -1) + "-%Y%m%d%H.log", // 没有使用go风格反人类的format格式
-		//rotatelogs.WithLinkName(filename),
-		//rotatelogs.WithMaxAge(time.Hour*24*7),
-		//rotatelogs.WithRotationTime(time.Hour),
-	)
-
-	if err != nil {
-		panic(err)
+	hook := lumberjack.Logger{
+		Filename:   filename,       // 日志文件路径
+		MaxSize:    log.maxSize,    // megabytes
+		MaxBackups: log.maxBackups, // 最多保留300个备份
+		Compress:   log.compress,   // 是否压缩 disabled by default
 	}
+
+	if log.maxAge > 0 {
+		hook.MaxAge = log.maxAge // days
+	}
+
+	// // 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
+	// // demo.log是指向最新日志的链接
+	// // 保存7天内的日志，每1小时(整点)分割一次日志
+	// hook, err := rotatelogs.New(
+	// 	strings.Replace(filename, ".log", "", -1) + "-%Y%m%d%H.log", // 没有使用go风格反人类的format格式
+	// 	//rotatelogs.WithLinkName(filename),
+	// 	//rotatelogs.WithMaxAge(time.Hour*24*7),
+	// 	//rotatelogs.WithRotationTime(time.Hour),
+	// )
+
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	var syncer zapcore.WriteSyncer
 	if log.logInConsole {
-		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(hook))
+		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
 	} else {
-		syncer = zapcore.AddSync(hook)
+		syncer = zapcore.AddSync(&hook)
 	}
 
 	return syncer
@@ -111,10 +108,10 @@ func (log *Z1logger) reNewZapLog() {
 	})
 
 	// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
-	debugWriter := log.getWriter(fmt.Sprintf("%s/debug.log", log.logPath))
-	infoWriter := log.getWriter(fmt.Sprintf("%s/info.log", log.logPath))
-	warnWriter := log.getWriter(fmt.Sprintf("%s/warn.log", log.logPath))
-	errorWriter := log.getWriter(fmt.Sprintf("%s/error.log", log.logPath))
+	debugWriter := log.getWriter(fmt.Sprintf("%s/debug/debug.log", log.logPath))
+	infoWriter := log.getWriter(fmt.Sprintf("%s/info/info.log", log.logPath))
+	warnWriter := log.getWriter(fmt.Sprintf("%s/warn/warn.log", log.logPath))
+	errorWriter := log.getWriter(fmt.Sprintf("%s/error/error.log", log.logPath))
 
 	// 最后创建具体的Logger
 	core := zapcore.NewTee(
