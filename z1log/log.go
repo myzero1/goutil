@@ -20,6 +20,7 @@ https://my.oschina.net/noevilme/blog/3111521
 3、日志使用简单方便，一次定义全局使用。
 */
 
+// Z1logger define
 type Z1logger struct {
 	zapLogger        *zap.Logger
 	zapSugaredLogger *zap.SugaredLogger
@@ -30,20 +31,12 @@ type Z1logger struct {
 	compress         bool   //压缩
 	jsonFormat       bool   //是否输出为json格式
 	showLine         bool   //显示代码行
-	logInConsole     bool   //是否同时输出到控制台
+	output           string //输出到哪里，console/file/both,default both
 	callerSkip       int
 	lock             sync.RWMutex
 }
 
 func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
-	_, err := os.Stat(log.logPath)
-	if err == nil {
-		os.MkdirAll(log.logPath, 777)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	hook := lumberjack.Logger{
 		Filename:   filename,       // 日志文件路径
 		MaxSize:    log.maxSize,    // megabytes
@@ -56,18 +49,20 @@ func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 	}
 
 	var syncer zapcore.WriteSyncer
-	if log.logInConsole {
-		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
-	} else {
+
+	switch log.output {
+	case "console":
+		syncer = zapcore.AddSync(os.Stdout)
+	case "file":
 		syncer = zapcore.AddSync(&hook)
+	case "both":
+		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
 	}
 
 	return syncer
-
 }
 
 func (log *Z1logger) reNewZapLog() {
-
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey: "time",
 		// TimeKey:  "ts",
@@ -147,11 +142,11 @@ func NewZ1logger() *Z1logger {
 		// maxSize:      100,
 		// maxBackups:   100,
 		// maxAge:       30,
-		compress:     false,
-		jsonFormat:   false,
-		showLine:     true,
-		logInConsole: true,
-		callerSkip:   1,
+		compress:   false,
+		jsonFormat: false,
+		showLine:   true,
+		output:     "both",
+		callerSkip: 1,
 	}
 	return &log
 
@@ -165,62 +160,77 @@ func init() {
 	z1logger.reNewZapLog()
 }
 
+// Debug Debug("msg",v)
 func Debug(args ...interface{}) {
 	z1logger.zapSugaredLogger.Debug(args...)
 }
 
+// Debugf Debugf("msg %v",v)
 func Debugf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Debugf(template, args...)
 }
 
+// Info Info("msg",v)
 func Info(args ...interface{}) {
 	z1logger.zapSugaredLogger.Info(args...)
 }
 
+// Infof Infof("msg %v",v)
 func Infof(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Infof(template, args...)
 }
 
+// Warn Warn("msg",v)
 func Warn(args ...interface{}) {
 	z1logger.zapSugaredLogger.Warn(args...)
 }
 
+// Warnf Warnf("msg %v",v)
 func Warnf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Warnf(template, args...)
 }
 
+// Error Error("msg",v)
 func Error(args ...interface{}) {
 	z1logger.zapSugaredLogger.Error(args...)
 }
 
+// Errorf Errorf("msg %v",v)
 func Errorf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Errorf(template, args...)
 }
 
+// DPanic DPanic("msg",v)
 func DPanic(args ...interface{}) {
 	z1logger.zapSugaredLogger.DPanic(args...)
 }
 
+// DPanicf DPanicf("msg %v",v)
 func DPanicf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.DPanicf(template, args...)
 }
 
+// Panic Panic("msg",v)
 func Panic(args ...interface{}) {
 	z1logger.zapSugaredLogger.Panic(args...)
 }
 
+// Panicf Panicf("msg %v",v)
 func Panicf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Panicf(template, args...)
 }
 
+// Fatal Fatal("msg",v)
 func Fatal(args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatal(args...)
 }
 
+// Fatalf Fatalf("msg %v",v)
 func Fatalf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatalf(template, args...)
 }
 
+// SetLogPath default ./logs
 func SetLogPath(logPath string) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -228,6 +238,7 @@ func SetLogPath(logPath string) {
 	z1logger.reNewZapLog()
 }
 
+// SetMaxSize default 100M
 func SetMaxSize(maxSize int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -235,6 +246,7 @@ func SetMaxSize(maxSize int) {
 	z1logger.reNewZapLog()
 }
 
+// SetMaxBackups The default is to retain all old log files
 func SetMaxBackups(maxBackups int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -242,6 +254,7 @@ func SetMaxBackups(maxBackups int) {
 	z1logger.reNewZapLog()
 }
 
+// SetMaxAge 1 as 1 day
 func SetMaxAge(maxAge int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -249,6 +262,7 @@ func SetMaxAge(maxAge int) {
 	z1logger.reNewZapLog()
 }
 
+// SetCompress default false
 func SetCompress(compress bool) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -256,6 +270,7 @@ func SetCompress(compress bool) {
 	z1logger.reNewZapLog()
 }
 
+// SetJsonFormat default false
 func SetJsonFormat(jsonFormat bool) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -263,6 +278,7 @@ func SetJsonFormat(jsonFormat bool) {
 	z1logger.reNewZapLog()
 }
 
+// SetShowLine default true
 func SetShowLine(showLine bool) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -270,12 +286,15 @@ func SetShowLine(showLine bool) {
 	z1logger.reNewZapLog()
 }
 
-func SetLogInConsole(logInConsole bool) {
+// SetOutput console/file/both,default both
+func SetOutput(output string) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
-	z1logger.logInConsole = logInConsole
+	z1logger.output = output
 	z1logger.reNewZapLog()
 }
+
+// SetCallerSkip default 1
 func SetCallerSkip(skip int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
