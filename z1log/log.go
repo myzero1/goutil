@@ -111,8 +111,8 @@ func (log *Z1logger) reNewZapLog() {
 	})
 
 	// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
-	debugWriter := log.getWriter(fmt.Sprintf("%s-debug.log", log.logPath))
-	infoWriter := log.getWriter(fmt.Sprintf("%s-info.log", log.logPath))
+	debugWriter := log.getWriter(fmt.Sprintf("%s/debug.log", log.logPath))
+	infoWriter := log.getWriter(fmt.Sprintf("%s/info.log", log.logPath))
 	warnWriter := log.getWriter(fmt.Sprintf("%s/warn.log", log.logPath))
 	errorWriter := log.getWriter(fmt.Sprintf("%s/error.log", log.logPath))
 
