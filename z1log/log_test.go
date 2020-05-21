@@ -10,5 +10,6 @@ import (
 func TestLog(t *testing.T) {
 	fmt.Println("------")
 
+	Debug("error %v", "Debug")
 	Info("error %v", "info")
 }

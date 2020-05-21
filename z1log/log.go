@@ -3,9 +3,10 @@ package z1log
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/natefinch/lumberjack"
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -23,21 +24,46 @@ type Z1logger struct {
 }
 
 func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
-	hook := lumberjack.Logger{
-		Filename:   log.logPath,    // 日志文件路径
-		MaxSize:    log.maxSize,    // megabytes
-		MaxBackups: log.maxBackups, // 最多保留300个备份
-		Compress:   log.compress,   // 是否压缩 disabled by default
+	_, err := os.Stat(log.logPath)
+	if err == nil {
+		os.MkdirAll(log.logPath, 777)
+		if err != nil {
+			panic(err)
+		}
 	}
-	if log.maxAge > 0 {
-		hook.MaxAge = log.maxAge // days
+
+	fmt.Println(log.logPath)
+
+	// hook := lumberjack.Logger{
+	// 	Filename:   filename,       // 日志文件路径
+	// 	MaxSize:    log.maxSize,    // megabytes
+	// 	MaxBackups: log.maxBackups, // 最多保留300个备份
+	// 	Compress:   log.compress,   // 是否压缩 disabled by default
+	// }
+
+	// if log.maxAge > 0 {
+	// 	hook.MaxAge = log.maxAge // days
+	// }
+
+	// 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
+	// demo.log是指向最新日志的链接
+	// 保存7天内的日志，每1小时(整点)分割一次日志
+	hook, err := rotatelogs.New(
+		strings.Replace(filename, ".log", "", -1) + "-%Y%m%d%H.log", // 没有使用go风格反人类的format格式
+		//rotatelogs.WithLinkName(filename),
+		//rotatelogs.WithMaxAge(time.Hour*24*7),
+		//rotatelogs.WithRotationTime(time.Hour),
+	)
+
+	if err != nil {
+		panic(err)
 	}
 
 	var syncer zapcore.WriteSyncer
 	if log.logInConsole {
-		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(&hook))
+		syncer = zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(hook))
 	} else {
-		syncer = zapcore.AddSync(&hook)
+		syncer = zapcore.AddSync(hook)
 	}
 
 	return syncer
@@ -47,26 +73,18 @@ func (log *Z1logger) getWriter(filename string) zapcore.WriteSyncer {
 func (log *Z1logger) reNewZapLog() {
 
 	encoderConfig := zapcore.EncoderConfig{
-		// TimeKey:       "time",
-		TimeKey:  "ts",
-		LevelKey: "level",
-		NameKey:  "logger",
-		// CallerKey: "line",
-		CallerKey:     "file",
-		MessageKey:    "msg",
-		StacktraceKey: "stacktrace",
-		LineEnding:    zapcore.DefaultLineEnding,
-		EncodeLevel:   zapcore.LowercaseLevelEncoder, // 小写编码器
-		// EncodeTime:     zapcore.ISO8601TimeEncoder,     // ISO8601 UTC 时间格式
+		MessageKey:  "msg",
+		LevelKey:    "level",
+		EncodeLevel: zapcore.CapitalLevelEncoder,
+		TimeKey:     "ts",
 		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 			enc.AppendString(t.Format("2006-01-02 15:04:05"))
 		},
-		// EncodeDuration: zapcore.SecondsDurationEncoder,
+		CallerKey:    "file",
+		EncodeCaller: zapcore.ShortCallerEncoder,
 		EncodeDuration: func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
 			enc.AppendInt64(int64(d) / 1000000)
 		},
-		EncodeCaller: zapcore.ShortCallerEncoder, // 全路径编码器
-		EncodeName:   zapcore.FullNameEncoder,
 	}
 
 	var encoder zapcore.Encoder
@@ -93,8 +111,8 @@ func (log *Z1logger) reNewZapLog() {
 	})
 
 	// 获取 info、error日志文件的io.Writer 抽象 getWriter() 在下方实现
-	debugWriter := log.getWriter(fmt.Sprintf("%s/debug.log", log.logPath))
-	infoWriter := log.getWriter(fmt.Sprintf("%s/inf0.log", log.logPath))
+	debugWriter := log.getWriter(fmt.Sprintf("%s-debug.log", log.logPath))
+	infoWriter := log.getWriter(fmt.Sprintf("%s-info.log", log.logPath))
 	warnWriter := log.getWriter(fmt.Sprintf("%s/warn.log", log.logPath))
 	errorWriter := log.getWriter(fmt.Sprintf("%s/error.log", log.logPath))
 
@@ -106,7 +124,7 @@ func (log *Z1logger) reNewZapLog() {
 		zapcore.NewCore(encoder, errorWriter, errorLevel),
 	)
 
-	log.zapLogger = zap.New(core)
+	log.zapLogger = zap.New(core, zap.AddCaller())
 	if log.showLine {
 		log.zapLogger = log.zapLogger.WithOptions(zap.AddCaller())
 	}
@@ -135,6 +153,11 @@ var z1logger *Z1logger
 func init() {
 	z1logger = NewZ1logger()
 	z1logger.reNewZapLog()
+}
+
+func Debug(args ...interface{}) {
+	errorLogger := z1logger.zapLogger.Sugar()
+	errorLogger.Debug(args...)
 }
 
 func Info(args ...interface{}) {
