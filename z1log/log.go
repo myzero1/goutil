@@ -160,72 +160,72 @@ func init() {
 	z1logger.reNewZapLog()
 }
 
-// Debug define
+// Debug Debug("msg",v)
 func Debug(args ...interface{}) {
 	z1logger.zapSugaredLogger.Debug(args...)
 }
 
-// Debugf defin
+// Debugf Debugf("msg %v",v)
 func Debugf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Debugf(template, args...)
 }
 
-// Info defin
+// Info Info("msg",v)
 func Info(args ...interface{}) {
 	z1logger.zapSugaredLogger.Info(args...)
 }
 
-// Infof defin
+// Infof Infof("msg %v",v)
 func Infof(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Infof(template, args...)
 }
 
-// Warn defin
+// Warn Warn("msg",v)
 func Warn(args ...interface{}) {
 	z1logger.zapSugaredLogger.Warn(args...)
 }
 
-// Warnf defin
+// Warnf Warnf("msg %v",v)
 func Warnf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Warnf(template, args...)
 }
 
-// Error defin
+// Error Error("msg",v)
 func Error(args ...interface{}) {
 	z1logger.zapSugaredLogger.Error(args...)
 }
 
-// Errorf defin
+// Errorf Errorf("msg %v",v)
 func Errorf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Errorf(template, args...)
 }
 
-// DPanic defin
+// DPanic DPanic("msg",v)
 func DPanic(args ...interface{}) {
 	z1logger.zapSugaredLogger.DPanic(args...)
 }
 
-// DPanicf defin
+// DPanicf DPanicf("msg %v",v)
 func DPanicf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.DPanicf(template, args...)
 }
 
-// Panic defin
+// Panic Panic("msg",v)
 func Panic(args ...interface{}) {
 	z1logger.zapSugaredLogger.Panic(args...)
 }
 
-// Panicf defin
+// Panicf Panicf("msg %v",v)
 func Panicf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Panicf(template, args...)
 }
 
-// Fatal defin
+// Fatal Fatal("msg",v)
 func Fatal(args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatal(args...)
 }
 
-// Fatalf defin
+// Fatalf Fatalf("msg %v",v)
 func Fatalf(template string, args ...interface{}) {
 	z1logger.zapSugaredLogger.Fatalf(template, args...)
 }
@@ -238,7 +238,7 @@ func SetLogPath(logPath string) {
 	z1logger.reNewZapLog()
 }
 
-// SetMaxSize defin
+// SetMaxSize default 100M
 func SetMaxSize(maxSize int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -246,7 +246,7 @@ func SetMaxSize(maxSize int) {
 	z1logger.reNewZapLog()
 }
 
-// SetMaxBackups defin
+// SetMaxBackups The default is to retain all old log files
 func SetMaxBackups(maxBackups int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
@@ -254,7 +254,7 @@ func SetMaxBackups(maxBackups int) {
 	z1logger.reNewZapLog()
 }
 
-// SetMaxAge defin
+// SetMaxAge 1 as 1 day
 func SetMaxAge(maxAge int) {
 	z1logger.lock.Lock()
 	defer z1logger.lock.Unlock()
